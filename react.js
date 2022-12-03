@@ -2,7 +2,7 @@
 // TODO Work on styling CHECK
 // TODO Filter out our internal playlist
 // TODO Loading more playlists
-// TODO bug: Theres a limit of 81 songs on generated playlists??
+// TODO bug: Theres a limit of 81 songs on generated playlists??    CHECK
 // TODO Remember history, and list recently shuffled playlists first?
 // TODO Work on styling of login screen
 // TODO Add instructions
@@ -152,7 +152,7 @@ const Playlists = ({ makeRequest, sourcePlaylist, setSourcePlaylist }) => {
     let [offset, setOffset] = React.useState(10)
     
     React.useEffect(() => {
-        makeRequest(`https://api.spotify.com/v1/me/playlists?offset=${offset}`, "GET")
+        makeRequest(`https://api.spotify.com/v1/me/playlists?offset=${offset}&limit=50`, "GET")
         .then(res => { return res.json(); })
         .then(result => {
             setPlaylists(result.items);
@@ -216,9 +216,9 @@ const PlayButton = ({ makeRequest, device, sourcePlaylist }) => {
         let content = await response.json();
         localStorage.setItem(KEY, content.id);
         return content.id;
-      }
+    }
 
-      async function get_playlist_albums(source_playlist_id) {
+    async function get_playlist_albums(source_playlist_id) {
         const limit = 100;
         let offset = 0
         let all_tracks = [];
@@ -253,14 +253,14 @@ const PlayButton = ({ makeRequest, device, sourcePlaylist }) => {
         
         return albums;
 
-      }
+    }
 
 
     async function play_playlist(target_playlist_id) {
         makeRequest(`https://api.spotify.com/v1/me/player/play?device_id=${device}`, "PUT", {context_uri: `spotify:playlist:${target_playlist_id}`})
-      }
+    }
 
-      async function populate_target_playlist(source_playlist_id, target_playlist_id) {
+    async function populate_target_playlist(source_playlist_id, target_playlist_id) {
         let albums = await get_playlist_albums(source_playlist_id);
 
         let shuffled_album_ids = shuffle(Object.keys(albums));
@@ -274,26 +274,24 @@ const PlayButton = ({ makeRequest, device, sourcePlaylist }) => {
           }
         }
         
-        
         for(var i = 0; i < songs.length; i += 100) {
           var some_songs = songs.slice(i, i+100);
           if (some_songs.length == 0) {
             break;
           }
-          var response = makeRequest(`https://api.spotify.com/v1/playlists/${target_playlist_id}/tracks`, i == 0?"PUT":"POST", {uris: some_songs});
+          var response = await makeRequest(`https://api.spotify.com/v1/playlists/${target_playlist_id}/tracks`, i == 0?"PUT":"POST", {uris: some_songs});
           if (!response.ok) {
             break;
           }
         }
+    }
 
-      }
-
-      async function click() {
+    async function click() {
         const target_playlist_id = await get_target_playlist_id();
         
         await populate_target_playlist(sourcePlaylist, target_playlist_id);
-        await play_playlist(target_playlist_id);
-      }
+        // await play_playlist(target_playlist_id);
+    }
 
     return (
         <div className="text-center mt-3">
