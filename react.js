@@ -1,12 +1,14 @@
 // TODO Handle failed requests, starting with auth failures...
-// TODO Work on styling
+// TODO Work on styling CHECK
 // TODO Filter out our internal playlist
 // TODO Loading more playlists
 // TODO bug: Theres a limit of 81 songs on generated playlists??
 // TODO Remember history, and list recently shuffled playlists first?
+// TODO Work on styling of login screen
+// TODO Add instructions
 
 
-const Login = ({ authToken, setAuthToken }) => {
+const Login = ({ setAuthToken }) => {
     
     var stateKey = 'spotify_auth_state';
 
@@ -60,6 +62,8 @@ const Login = ({ authToken, setAuthToken }) => {
 
     React.useEffect(() => {
         var params = getHashParams();
+        // Delete hash params
+        history.replaceState("", document.title, window.location.pathname + window.location.search);
     
         var access_token = params.access_token,
             state = params.state,
@@ -71,8 +75,16 @@ const Login = ({ authToken, setAuthToken }) => {
     
         if (access_token && (state == null || state !== storedState)) {
             alert('There was an error during the authentication');
-        } else {
+        } else if(access_token) {
             setAuthToken(access_token);
+            localStorage.setItem("access_token", access_token);
+        } else {
+            const stored_access_token = localStorage.getItem("access_token");
+            if (stored_access_token) {
+                console.log("Using stored access token");
+                console.log(stored_access_token);
+                setAuthToken(stored_access_token);
+            }
         }
     }, []);
     return (
@@ -82,21 +94,13 @@ const Login = ({ authToken, setAuthToken }) => {
     )
 }
 
-const Devices = ({ authToken, device, setDevice }) => {
+const Devices = ({ makeRequest, device, setDevice }) => {
     let [devices, setDevices] = React.useState()
 
     React.useEffect(() => {
-        fetch("https://api.spotify.com/v1/me/player/devices", {
-            method: "GET",
-            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken}, 
-        }).then(res => {
-            if (res.ok) {
-                return res.json();
-            } else {
-                throw new Error('Network response was not OK');
-            }
-        }).then(result => {
-            console.log(result);
+        makeRequest("https://api.spotify.com/v1/me/player/devices", "GET")
+        .then(res => { return res.json(); })
+        .then(result => {
             setDevices(result.devices)
             let active_device = result.devices[0]
             for (var i = 0; i < result.devices.length; i++) {
@@ -107,9 +111,6 @@ const Devices = ({ authToken, device, setDevice }) => {
                 }
             }
             setDevice(active_device.id)
-        })
-        .catch((ex) => {
-            console.error(ex);
         });
     }, []);
 
@@ -146,25 +147,15 @@ const Playlist = ({ playlist, selected, setSourcePlaylist }) => {
     )
 }
 
-const Playlists = ({ authToken, sourcePlaylist, setSourcePlaylist }) => {
+const Playlists = ({ makeRequest, sourcePlaylist, setSourcePlaylist }) => {
     let [playlists, setPlaylists] = React.useState()
     
     React.useEffect(() => {
-        fetch("https://api.spotify.com/v1/me/playlists", {
-            method: "GET",
-            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken}, 
-        }).then(res => {
-            if (res.ok) {
-                return res.json();
-            } else {
-                throw new Error('Network response was not OK');
-            }
-        }).then(result => {
+        makeRequest("https://api.spotify.com/v1/me/playlists", "GET")
+        .then(res => { return res.json(); })
+        .then(result => {
             console.log(result.items);
             setPlaylists(result.items);
-        })
-        .catch(() => {
-            console.log("Booo");
         });
     }, []);
 
@@ -189,7 +180,7 @@ const Playlists = ({ authToken, sourcePlaylist, setSourcePlaylist }) => {
     }
 }
 
-const PlayButton = ({ authToken, device, sourcePlaylist }) => {
+const PlayButton = ({ makeRequest, device, sourcePlaylist }) => {
     
     /**
      * Shuffles array in place. ES6 version
@@ -209,24 +200,19 @@ const PlayButton = ({ authToken, device, sourcePlaylist }) => {
         // If we remember a playlist id, verify it exists and return it if so
         if (playlist_id) {
           // Ask just for id since we are just doing a presence check
-          let response = await fetch(`https://api.spotify.com/v1/playlists/${playlist_id}?fields=id`, {
-            method: "GET",
-            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken}, 
-          });
+          let response = await makeRequest(`https://api.spotify.com/v1/playlists/${playlist_id}?fields=id`, "GET", null, [200, 404])
           if (response.ok) {
             return playlist_id;
           }
         }
         // If we do not remember a playlist id, or it does not exist anymore, create one
-        let response = await fetch(`https://api.spotify.com/v1/me/playlists`, {
-          method: "POST",
-          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken},
-          body: JSON.stringify({
-            "name": "Shuffle by Album Playlist",
-            "description": "Powers shuffle by album",
-            "public": false
-          })
-        });
+        let response = await makeRequest(`https://api.spotify.com/v1/me/playlists`, "POST", 
+            {
+                "name": "Shuffle by Album Playlist",
+                "description": "Powers shuffle by album",
+                "public": false
+            }, [201]
+        )
         let content = await response.json();
         localStorage.setItem(KEY, content.id);
         return content.id;
@@ -237,16 +223,10 @@ const PlayButton = ({ authToken, device, sourcePlaylist }) => {
         let offset = 0
         let all_tracks = [];
         while(true) {
-          let res = await fetch(`https://api.spotify.com/v1/playlists/${source_playlist_id}/tracks?fields=items(track(id,track_number,%20album(id,name))),next&offset=${offset}&limit=${limit}`, {
-            method: "GET",
-            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken}, 
-          });
-          if (res.status == 429) {
-            console.log(res)
-            const retryAfter = res.headers.get('retry-after');
-            console.log(`Hit rate limit, sleeping for ${retryAfter} seconds`);
-            await new Promise(r => setTimeout(r, retryAfter * 1000));
-          } else if (res.ok) {
+          let res = await makeRequest(`https://api.spotify.com/v1/playlists/${source_playlist_id}/tracks?fields=items(track(id,track_number,%20album(id,name))),next&offset=${offset}&limit=${limit}`, 
+            "GET"
+          );
+          if (res.ok) {
             let content = await res.json();
             all_tracks = all_tracks.concat(content.items);
             if (content.next == null) {
@@ -254,6 +234,8 @@ const PlayButton = ({ authToken, device, sourcePlaylist }) => {
             } else {
               offset += limit;
             }
+          } else {
+            return null;
           }
         }
         
@@ -275,12 +257,7 @@ const PlayButton = ({ authToken, device, sourcePlaylist }) => {
 
 
     async function play_playlist(target_playlist_id) {
-        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device}`, {
-          method: "PUT",
-          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken}, 
-          // TODO care about device
-          body: JSON.stringify({context_uri: `spotify:playlist:${target_playlist_id}`})
-        });
+        makeRequest(`https://api.spotify.com/v1/me/player/play?device_id=${device}`, "PUT", {context_uri: `spotify:playlist:${target_playlist_id}`})
       }
 
       async function populate_target_playlist(source_playlist_id, target_playlist_id) {
@@ -303,19 +280,9 @@ const PlayButton = ({ authToken, device, sourcePlaylist }) => {
           if (some_songs.length == 0) {
             break;
           }
-          // TODO error handling?
-          if (i == 0) {
-            const response = await fetch(`https://api.spotify.com/v1/playlists/${target_playlist_id}/tracks`, {
-                  method: "PUT",
-                  headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken}, 
-                  body: JSON.stringify({uris: some_songs})
-            });
-          } else {
-            const response = await fetch(`https://api.spotify.com/v1/playlists/${target_playlist_id}/tracks`, {
-                  method: "POST",
-                  headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken}, 
-                  body: JSON.stringify({uris: some_songs})
-            });
+          var response = makeRequest(`https://api.spotify.com/v1/playlists/${target_playlist_id}/tracks`, i == 0?"PUT":"POST", {uris: some_songs});
+          if (!response.ok) {
+            break;
           }
         }
 
@@ -335,33 +302,67 @@ const PlayButton = ({ authToken, device, sourcePlaylist }) => {
     )
 }
 
-const Main = ({ authToken }) => {
+const Main = ({ makeRequest }) => {
     let [device, setDevice] = React.useState()
     let [sourcePlaylist, setSourcePlaylist] = React.useState()
     return (
         <div>
             <div class="row">
                 <div class="col-9">
-                    <PlayButton authToken={authToken} device={device} sourcePlaylist={sourcePlaylist} />
+                    <PlayButton makeRequest={makeRequest} device={device} sourcePlaylist={sourcePlaylist} />
                 </div>
                 <div class="col">
-                    <Devices authToken={authToken} device={device} setDevice={setDevice} /> 
+                    <Devices makeRequest={makeRequest} device={device} setDevice={setDevice} /> 
                 </div>
             </div>
-            <Playlists authToken={authToken} sourcePlaylist={sourcePlaylist} setSourcePlaylist={setSourcePlaylist} /> 
+            <Playlists makeRequest={makeRequest} sourcePlaylist={sourcePlaylist} setSourcePlaylist={setSourcePlaylist} /> 
         </div>
     )
 }
 
 const App = () => {
     let [authToken, setAuthToken] = React.useState()
-    if (!authToken) {
+    let [errorMessage, setErrorMessage] = React.useState()
+
+    async function makeRequest(url, method, body = null, expected=[200, 201, 204]) {
+        // This is a loop in case it needs to do a retry
+        while(true) {
+            let response = await fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken},
+                body: body ? JSON.stringify(body) : null
+            });
+            if (expected.includes(response.status)) {
+                return response;
+            } else if (response.status == 429) {
+              const retryAfter = res.headers.get('retry-after');
+              console.log(`Hit rate limit, sleeping for ${retryAfter} seconds`);
+              await new Promise(r => setTimeout(r, retryAfter * 1000));
+            } else if (response.status == 401) {
+                console.error("Authn failed, clearing token");
+                setAuthToken(null);
+                localStorage.removeItem("access_token");
+                return null;
+            } else {
+                const text = await response.text();
+                console.error(`Fatal error: ${response.status} ${text}`);
+                setErrorMessage(`Received an error when contacting Spotify; ${response.status} ${text}`);
+                return null;
+            }
+        }
+    }
+
+    if (errorMessage) {
         return (
-            <Login authToken={authToken} setAuthToken={setAuthToken}/>
+            <p>{errorMessage}</p>
+        )
+    } else if (!authToken) {
+        return (
+            <Login setAuthToken={setAuthToken}/>
         )
     } else {
         return (
-            <Main authToken={authToken} />
+            <Main makeRequest={makeRequest} />
         )
     }
 }
