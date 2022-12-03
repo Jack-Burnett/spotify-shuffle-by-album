@@ -148,18 +148,29 @@ const Playlist = ({ playlist, selected, setSourcePlaylist }) => {
 }
 
 const Playlists = ({ makeRequest, sourcePlaylist, setSourcePlaylist }) => {
-    let [playlists, setPlaylists] = React.useState()
-    let [offset, setOffset] = React.useState(10)
-    
-    React.useEffect(() => {
-        makeRequest(`https://api.spotify.com/v1/me/playlists?offset=${offset}&limit=50`, "GET")
+    let [playlists, setPlaylists] = React.useState([])
+    let [offset, setOffset] = React.useState(0)
+    let [loading, setLoading] = React.useState(false)
+    let [hasNext, setHasNext] = React.useState(false)
+
+    function loadMorePlaylists() {
+        const pageSize = 20;
+        setLoading(true);
+        makeRequest(`https://api.spotify.com/v1/me/playlists?offset=${offset}&limit=${pageSize}`, "GET")
         .then(res => { return res.json(); })
         .then(result => {
-            setPlaylists(result.items);
+            setPlaylists(playlists => playlists.concat(result.items));
+            setHasNext(Boolean(result.next));
+            setLoading(false);
+            setOffset(offset => offset + pageSize)
         });
+    }
+    
+    React.useEffect(() => {
+        loadMorePlaylists();
     }, []);
 
-    if (playlists) {
+    if (playlists != []) {
         return (
             <div className="row rows-cols m-1 justify-content-center">
                 {
@@ -170,6 +181,15 @@ const Playlists = ({ makeRequest, sourcePlaylist, setSourcePlaylist }) => {
                             </div>
                         )
                     })
+                }
+                {
+                    hasNext &&
+                        <div key="more" className="col-auto mb-4">
+                            <button type="button" disabled={loading} className="btn btn-outline-info h-100 m-1" style={{width: 12 + "rem"}} onClick={() => loadMorePlaylists()}>
+                                Load More Playlists
+                            </button>
+                            
+                        </div>
                 }
             </div>
         );
@@ -290,11 +310,11 @@ const PlayButton = ({ makeRequest, device, sourcePlaylist }) => {
         const target_playlist_id = await get_target_playlist_id();
         
         await populate_target_playlist(sourcePlaylist, target_playlist_id);
-        // await play_playlist(target_playlist_id);
+        await play_playlist(target_playlist_id);
     }
 
     return (
-        <div className="text-center mt-3">
+        <div className="text-center m-3">
             <button className="btn btn-success btn-lg" disabled = {!device || !sourcePlaylist} onClick={click}>Shuffle this playlist!</button>
         </div>
     )
@@ -305,15 +325,17 @@ const Main = ({ makeRequest }) => {
     let [sourcePlaylist, setSourcePlaylist] = React.useState()
     return (
         <div>
-            <div className="row">
-                <div className="col-9">
+            <div className="d-flex justify-content-between fixed-top">
+                <div>
                     <PlayButton makeRequest={makeRequest} device={device} sourcePlaylist={sourcePlaylist} />
                 </div>
-                <div className="col">
+                <div>
                     <Devices makeRequest={makeRequest} device={device} setDevice={setDevice} /> 
                 </div>
             </div>
-            <Playlists makeRequest={makeRequest} sourcePlaylist={sourcePlaylist} setSourcePlaylist={setSourcePlaylist} /> 
+            <div style={{paddingTop:"100px", overflow: "hidden"}}>
+                <Playlists makeRequest={makeRequest} sourcePlaylist={sourcePlaylist} setSourcePlaylist={setSourcePlaylist} /> 
+            </div>
         </div>
     )
 }
