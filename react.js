@@ -3,7 +3,6 @@
 // TODO Filter out our internal playlist
 // TODO Loading more playlists
 // TODO bug: Theres a limit of 81 songs on generated playlists??
-// TODO upload to github
 // TODO Remember history, and list recently shuffled playlists first?
 
 
@@ -116,12 +115,13 @@ const Devices = ({ authToken, device, setDevice }) => {
 
     if (devices) {
         return (
-            <div>
-                <select name="devices" id="devices" className={"custom-select"} value={device} onChange={(e) => setDevice(e.target.value)}>
+            <div className="form-floating m-3">
+                <select name="devices" id="devices" className={"form-select"} value={device} onChange={(e) => setDevice(e.target.value)}>
                     { devices.map(function(object, i) {
                         return <option key={object.id} value={object.id}>{object.name}</option>;
                     })}
                 </select>
+                <label for="devices">Device</label>
             </div>
         )
     } else {
@@ -133,14 +133,13 @@ const Devices = ({ authToken, device, setDevice }) => {
 
 const Playlist = ({ playlist, selected, setSourcePlaylist }) => {
     return (
-        <div className="col-sm-2" onClick={() => setSourcePlaylist([playlist.id])}>
-            <div className={"card " + (selected ? 'text-white bg-primary' : '')}>
-                {
-                    playlist.images.length > 0
-                    ? <img className="card-img-top" src={playlist.images[0].url} alt="Card image cap" />
-                    : <img className="card-img-top" src="http://localhost:8000/download.png" alt="Card image cap" />
-                }
-                <div className="card-body" />
+        <div className={"h-100 m-1 card " + (selected ? 'text-white bg-primary' : '')} style={{width: 12 + "rem"}} onClick={() => setSourcePlaylist([playlist.id])}>
+            {
+                playlist.images.length > 0
+                ? <img className="card-img-top" src={playlist.images[0].url} alt="Card image cap" />
+                : <img className="card-img-top" src="http://localhost:8000/download.png" alt="Card image cap" />
+            }
+            <div className="card-body">
                 <p className="card-text">{playlist.name}</p>
             </div>
         </div>
@@ -171,10 +170,14 @@ const Playlists = ({ authToken, sourcePlaylist, setSourcePlaylist }) => {
 
     if (playlists) {
         return (
-            <div className="row">
-                { 
+            <div className="row rows-cols m-1 justify-content-center">
+                {
                     playlists.map(function(object, i) {
-                        return <Playlist key={i} playlist={object} selected={sourcePlaylist == object.id} setSourcePlaylist={setSourcePlaylist} />
+                        return (
+                            <div className="col-auto mb-4">
+                                <Playlist key={i} playlist={object} selected={sourcePlaylist == object.id} setSourcePlaylist={setSourcePlaylist} />
+                            </div>
+                        )
                     })
                 }
             </div>
@@ -326,7 +329,7 @@ const PlayButton = ({ authToken, device, sourcePlaylist }) => {
       }
 
     return (
-        <div>
+        <div class="text-center mt-3">
             <button className="btn btn-success btn-lg" disabled = {!device || !sourcePlaylist} onClick={click}>Shuffle this playlist!</button>
         </div>
     )
@@ -337,8 +340,14 @@ const Main = ({ authToken }) => {
     let [sourcePlaylist, setSourcePlaylist] = React.useState()
     return (
         <div>
-            <PlayButton authToken={authToken} device={device} sourcePlaylist={sourcePlaylist} />
-            <Devices authToken={authToken} device={device} setDevice={setDevice} /> 
+            <div class="row">
+                <div class="col-9">
+                    <PlayButton authToken={authToken} device={device} sourcePlaylist={sourcePlaylist} />
+                </div>
+                <div class="col">
+                    <Devices authToken={authToken} device={device} setDevice={setDevice} /> 
+                </div>
+            </div>
             <Playlists authToken={authToken} sourcePlaylist={sourcePlaylist} setSourcePlaylist={setSourcePlaylist} /> 
         </div>
     )
