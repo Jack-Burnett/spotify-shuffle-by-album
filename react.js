@@ -1,4 +1,4 @@
-// TODO Handle failed requests, starting with auth failures...
+// TODO Handle failed requests, starting with auth failures...  CHECK
 // TODO Work on styling CHECK
 // TODO Filter out our internal playlist
 // TODO Loading more playlists
@@ -122,7 +122,7 @@ const Devices = ({ makeRequest, device, setDevice }) => {
                         return <option key={object.id} value={object.id}>{object.name}</option>;
                     })}
                 </select>
-                <label for="devices">Device</label>
+                <label htmlFor="devices">Device</label>
             </div>
         )
     } else {
@@ -149,12 +149,12 @@ const Playlist = ({ playlist, selected, setSourcePlaylist }) => {
 
 const Playlists = ({ makeRequest, sourcePlaylist, setSourcePlaylist }) => {
     let [playlists, setPlaylists] = React.useState()
+    let [offset, setOffset] = React.useState(10)
     
     React.useEffect(() => {
-        makeRequest("https://api.spotify.com/v1/me/playlists", "GET")
+        makeRequest(`https://api.spotify.com/v1/me/playlists?offset=${offset}`, "GET")
         .then(res => { return res.json(); })
         .then(result => {
-            console.log(result.items);
             setPlaylists(result.items);
         });
     }, []);
@@ -165,8 +165,8 @@ const Playlists = ({ makeRequest, sourcePlaylist, setSourcePlaylist }) => {
                 {
                     playlists.map(function(object, i) {
                         return (
-                            <div className="col-auto mb-4">
-                                <Playlist key={i} playlist={object} selected={sourcePlaylist == object.id} setSourcePlaylist={setSourcePlaylist} />
+                            <div key={i} className="col-auto mb-4">
+                                <Playlist playlist={object} selected={sourcePlaylist == object.id} setSourcePlaylist={setSourcePlaylist} />
                             </div>
                         )
                     })
@@ -296,7 +296,7 @@ const PlayButton = ({ makeRequest, device, sourcePlaylist }) => {
       }
 
     return (
-        <div class="text-center mt-3">
+        <div className="text-center mt-3">
             <button className="btn btn-success btn-lg" disabled = {!device || !sourcePlaylist} onClick={click}>Shuffle this playlist!</button>
         </div>
     )
@@ -307,11 +307,11 @@ const Main = ({ makeRequest }) => {
     let [sourcePlaylist, setSourcePlaylist] = React.useState()
     return (
         <div>
-            <div class="row">
-                <div class="col-9">
+            <div className="row">
+                <div className="col-9">
                     <PlayButton makeRequest={makeRequest} device={device} sourcePlaylist={sourcePlaylist} />
                 </div>
-                <div class="col">
+                <div className="col">
                     <Devices makeRequest={makeRequest} device={device} setDevice={setDevice} /> 
                 </div>
             </div>
