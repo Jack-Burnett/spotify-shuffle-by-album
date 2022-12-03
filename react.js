@@ -1,11 +1,12 @@
 // TODO Handle failed requests, starting with auth failures...  CHECK
 // TODO Work on styling CHECK
-// TODO Filter out our internal playlist
-// TODO Loading more playlists
+// TODO Filter out our internal playlist   CHECK
+// TODO Loading more playlists    CHECK
 // TODO bug: Theres a limit of 81 songs on generated playlists??    CHECK
 // TODO Remember history, and list recently shuffled playlists first?
 // TODO Work on styling of login screen
 // TODO Add instructions
+// TODO Make it look nice on mobile
 
 
 const Login = ({ setAuthToken }) => {
@@ -174,10 +175,10 @@ const Playlists = ({ makeRequest, sourcePlaylist, setSourcePlaylist }) => {
         return (
             <div className="row rows-cols m-1 justify-content-center">
                 {
-                    playlists.map(function(object, i) {
+                    playlists.filter(playlist => playlist.name !== "Shuffle by Album Playlist").map(function(playlist, i) {
                         return (
                             <div key={i} className="col-auto mb-4">
-                                <Playlist playlist={object} selected={sourcePlaylist == object.id} setSourcePlaylist={setSourcePlaylist} />
+                                <Playlist playlist={playlist} selected={sourcePlaylist == playlist.id} setSourcePlaylist={setSourcePlaylist} />
                             </div>
                         )
                     })
@@ -315,7 +316,7 @@ const PlayButton = ({ makeRequest, device, sourcePlaylist }) => {
 
     return (
         <div className="text-center m-3">
-            <button className="btn btn-success btn-lg" disabled = {!device || !sourcePlaylist} onClick={click}>Shuffle this playlist!</button>
+            <button className="btn btn-success btn-lg btn-block" disabled = {!device || !sourcePlaylist} onClick={click}>Shuffle this playlist!</button>
         </div>
     )
 }
@@ -325,7 +326,7 @@ const Main = ({ makeRequest }) => {
     let [sourcePlaylist, setSourcePlaylist] = React.useState()
     return (
         <div>
-            <div className="d-flex justify-content-between fixed-top">
+            <div className="d-md-flex justify-content-md-between fixed-top d-grid gap-2 d-md-block">
                 <div>
                     <PlayButton makeRequest={makeRequest} device={device} sourcePlaylist={sourcePlaylist} />
                 </div>
